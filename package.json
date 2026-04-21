@@ -1,0 +1,43 @@
+{
+  "name": "aircheck",
+  "author": "BD Crowell",
+  "version": "1.0.0",
+  "keywords": ["pebble-app"],
+  "private": true,
+  "dependencies": {
+    "@rebble/clay": "^1.0.4"
+  },
+  "pebble": {
+    "displayName": "AirCheck",
+    "uuid": "0a5d4d0a-f1f4-4cf5-b414-8a6a1fe85052",
+    "sdkVersion": "3",
+    "enableMultiJS": true,
+    "targetPlatforms": [
+      "aplite",
+      "basalt",
+      "chalk"
+    ],
+    "capabilities": [
+      "location",
+      "configurable"
+    ],
+    "watchapp": {
+      "watchface": false
+    },
+    "messageKeys": [
+      "RequestRefresh",
+      "StatusCode",
+      "Flags",
+      "AQI",
+      "Temperature",
+      "TemperatureUnit",
+      "WeatherCode",
+      "UvIndex",
+      "LocationMode",
+      "FixedZip"
+    ],
+    "resources": {
+      "media": []
+    }
+  }
+}
