@@ -20,6 +20,7 @@ typedef struct {
   bool has_aqi;
   bool has_weather;
   bool use_celsius;
+  bool use_european_aqi;
   bool using_cache;
   bool is_fixed_location;
   int status_code;
@@ -27,7 +28,6 @@ typedef struct {
   int temperature;
   int uv_index;
   int weather_code;
-  char fixed_zip[8];
 } LivePayload;
 
 typedef enum {
@@ -53,14 +53,14 @@ static LivePayload s_live_payload = {
   .has_aqi = false,
   .has_weather = false,
   .use_celsius = false,
+  .use_european_aqi = false,
   .using_cache = false,
   .is_fixed_location = false,
   .status_code = AIRCHECK_STATUS_LOADING,
   .aqi = 0,
   .temperature = 0,
   .uv_index = -1,
-  .weather_code = 0,
-  .fixed_zip = ""
+  .weather_code = 0
 };
 
 static TextLayer *create_text_layer(GRect frame, GFont font, GTextAlignment alignment) {
@@ -109,7 +109,16 @@ static const char *weather_label_for_code(int weather_code) {
   return "Unknown";
 }
 
-static const char *aqi_category_for_value(int aqi) {
+static const char *aqi_category_for_payload(const LivePayload *payload) {
+  int aqi = payload->aqi;
+  if(payload->use_european_aqi) {
+    if(aqi <= 20) return "GOOD";
+    if(aqi <= 40) return "FAIR";
+    if(aqi <= 60) return "MODERATE";
+    if(aqi <= 80) return "POOR";
+    if(aqi <= 100) return "VERY POOR";
+    return "EXTREMELY POOR";
+  }
   if(aqi <= 50) {
     return "GOOD";
   }
@@ -128,7 +137,15 @@ static const char *aqi_category_for_value(int aqi) {
   return "HAZARDOUS";
 }
 
-static const char *aqi_guidance_for_value(int aqi) {
+static const char *aqi_guidance_for_payload(const LivePayload *payload) {
+  int aqi = payload->aqi;
+  if(payload->use_european_aqi) {
+    if(aqi <= 20) return "Safe for most people";
+    if(aqi <= 40) return "Sensitive use care";
+    if(aqi <= 60) return "Limit outdoor time";
+    if(aqi <= 80) return "Limit exposure";
+    return "Stay inside if possible";
+  }
   if(aqi <= 50) {
     return "Safe for most people";
   }
@@ -139,7 +156,7 @@ static const char *aqi_guidance_for_value(int aqi) {
     return "Limit outdoor time";
   }
   if(aqi <= 200) {
-    return "Avoid prolonged exposure";
+    return "Limit exposure";
   }
   return "Stay inside if possible";
 }
@@ -147,6 +164,11 @@ static const char *aqi_guidance_for_value(int aqi) {
 static RecommendationLevel aqi_recommendation_for_payload(const LivePayload *payload) {
   if(!payload->has_aqi) {
     return RECOMMENDATION_NO_DATA;
+  }
+  if(payload->use_european_aqi) {
+    if(payload->aqi <= 20) return RECOMMENDATION_GO_OUT;
+    if(payload->aqi <= 60) return RECOMMENDATION_CAUTION;
+    return RECOMMENDATION_STAY_IN;
   }
   if(payload->aqi <= 50) {
     return RECOMMENDATION_GO_OUT;
@@ -229,6 +251,7 @@ static GColor verdict_color_for_payload(const LivePayload *payload) {
   RecommendationLevel recommendation = final_recommendation_for_payload(payload);
 
 #ifdef PBL_BW
+  (void)recommendation;
   (void)payload;
   return GColorWhite;
 #else
@@ -289,6 +312,11 @@ static const char *uv_reason_for_payload(const LivePayload *payload) {
 static const char *aqi_reason_for_payload(const LivePayload *payload) {
   if(!payload->has_aqi) {
     return NULL;
+  }
+  if(payload->use_european_aqi) {
+    if(payload->aqi <= 20) return "AQI Good";
+    if(payload->aqi <= 60) return "AQI Moderate";
+    return "AQI Poor";
   }
   if(payload->aqi <= 50) {
     return "AQI Good";
@@ -382,10 +410,11 @@ static const char *supporting_status_text(void) {
 }
 
 static const char *helper_text_for_payload(const LivePayload *payload) {
-  (void)payload;
-
   if(s_manual_refresh_in_progress) {
     return "Refreshing...";
+  }
+  if(payload->is_fixed_location) {
+    return "Fixed | Select: Refresh";
   }
   return "Select: Refresh";
 }
@@ -416,7 +445,8 @@ static void render_summary_screen(const LivePayload *payload) {
   text_layer_set_text(s_primary_layer, verdict_text_for_payload(payload));
 
   if(payload->has_aqi) {
-    snprintf(aqi_buffer, sizeof(aqi_buffer), "AQI: %d", payload->aqi);
+    snprintf(aqi_buffer, sizeof(aqi_buffer), "%s AQI: %d",
+             payload->use_european_aqi ? "EU" : "US", payload->aqi);
   } else {
     snprintf(aqi_buffer, sizeof(aqi_buffer), "AQI: --");
   }
@@ -443,8 +473,8 @@ static void render_aqi_screen(const LivePayload *payload) {
   if(payload->has_aqi) {
     snprintf(aqi_buffer, sizeof(aqi_buffer), "%d", payload->aqi);
     text_layer_set_text(s_primary_layer, aqi_buffer);
-    text_layer_set_text(s_secondary_layer, aqi_category_for_value(payload->aqi));
-    text_layer_set_text(s_detail_layer, aqi_guidance_for_value(payload->aqi));
+    text_layer_set_text(s_secondary_layer, aqi_category_for_payload(payload));
+    text_layer_set_text(s_detail_layer, aqi_guidance_for_payload(payload));
     if(has_failure_status(payload)) {
       text_layer_set_text(s_reason_layer, supporting_status_text());
     } else {
@@ -549,12 +579,12 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
   Tuple *status_tuple = dict_find(iterator, MESSAGE_KEY_StatusCode);
   Tuple *flags_tuple = dict_find(iterator, MESSAGE_KEY_Flags);
   Tuple *aqi_tuple = dict_find(iterator, MESSAGE_KEY_AQI);
+  Tuple *aqi_scale_tuple = dict_find(iterator, MESSAGE_KEY_AQIScale);
   Tuple *temp_tuple = dict_find(iterator, MESSAGE_KEY_Temperature);
   Tuple *temperature_unit_tuple = dict_find(iterator, MESSAGE_KEY_TemperatureUnit);
   Tuple *weather_tuple = dict_find(iterator, MESSAGE_KEY_WeatherCode);
   Tuple *uv_tuple = dict_find(iterator, MESSAGE_KEY_UvIndex);
   Tuple *location_mode_tuple = dict_find(iterator, MESSAGE_KEY_LocationMode);
-  Tuple *fixed_zip_tuple = dict_find(iterator, MESSAGE_KEY_FixedZip);
 
   if(status_tuple) {
     s_live_payload.status_code = status_tuple->value->int32;
@@ -570,6 +600,9 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
   if(aqi_tuple) {
     s_live_payload.aqi = aqi_tuple->value->int32;
   }
+  if(aqi_scale_tuple) {
+    s_live_payload.use_european_aqi = aqi_scale_tuple->value->int32 == 1;
+  }
   if(temp_tuple) {
     s_live_payload.temperature = temp_tuple->value->int32;
   }
@@ -583,12 +616,8 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
   if(uv_tuple) {
     s_live_payload.uv_index = uv_tuple->value->int32;
   }
-  if(location_mode_tuple && location_mode_tuple->value->cstring[0] != '\0') {
-    s_live_payload.is_fixed_location = strcmp(location_mode_tuple->value->cstring, "fixed") == 0;
-  }
-  if(fixed_zip_tuple && fixed_zip_tuple->value->cstring[0] != '\0') {
-    snprintf(s_live_payload.fixed_zip, sizeof(s_live_payload.fixed_zip), "%s",
-             fixed_zip_tuple->value->cstring);
+  if(location_mode_tuple) {
+    s_live_payload.is_fixed_location = location_mode_tuple->value->int32 == 1;
   }
 
   s_live_payload.has_live_data = s_live_payload.has_aqi || s_live_payload.has_weather;
@@ -636,20 +665,21 @@ static void main_window_load(Window *window) {
   Layer *window_layer = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(window_layer);
   bool is_round = PBL_IF_ROUND_ELSE(true, false);
+  bool is_large = bounds.size.w >= 200;
   bool is_bw;
   GFont primary_font;
   GFont secondary_font;
-  int horizontal_inset = is_round ? 12 : 4;
-  int title_y = is_round ? 10 : 2;
-  int primary_y = is_round ? 30 : 20;
-  int primary_h = is_round ? 44 : 40;
-  int secondary_y = is_round ? 76 : 64;
+  int horizontal_inset = is_round ? (is_large ? 28 : 12) : (is_large ? 8 : 4);
+  int title_y = is_round ? (is_large ? 18 : 10) : (is_large ? 8 : 2);
+  int primary_y = is_round ? (is_large ? 55 : 30) : (is_large ? 42 : 20);
+  int primary_h = is_large ? 50 : (is_round ? 44 : 40);
+  int secondary_y = is_round ? (is_large ? 112 : 76) : (is_large ? 94 : 64);
   int secondary_h;
-  int detail_y = is_round ? 104 : 94;
+  int detail_y = is_round ? (is_large ? 150 : 104) : (is_large ? 130 : 94);
   int detail_h;
-  int reason_y = is_round ? 128 : 120;
-  int reason_h = is_round ? 32 : 28;
-  int helper_y = bounds.size.h - (is_round ? 24 : 16);
+  int reason_y = is_round ? (is_large ? 182 : 128) : (is_large ? 160 : 120);
+  int reason_h = is_large ? 36 : (is_round ? 32 : 28);
+  int helper_y = bounds.size.h - (is_round ? (is_large ? 28 : 24) : (is_large ? 20 : 16));
   GRect content_bounds = inset_rect(bounds, horizontal_inset);
 
 #ifdef PBL_BW
@@ -658,8 +688,8 @@ static void main_window_load(Window *window) {
   is_bw = false;
 #endif
 
-  primary_font = is_round ? fonts_get_system_font(FONT_KEY_BITHAM_30_BLACK) :
-                            fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD);
+  primary_font = (is_round || is_large) ? fonts_get_system_font(FONT_KEY_BITHAM_30_BLACK) :
+                                          fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD);
   secondary_font = is_bw ? fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD) :
                            fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD);
 

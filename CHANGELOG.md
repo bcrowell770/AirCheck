@@ -1,7 +1,16 @@
 # Changelog
 
 ## [Unreleased]
-- No active unreleased changes.
+### Added
+- Added United States and European AQI scale selection in Clay settings.
+- Added optional fixed-location lookup by city or postal code and country code.
+- Added native Diorite, Emery, Flint, and Gabbro builds.
+
+### Changed
+- Added scale-aware AQI categories, guidance, and recommendation thresholds.
+- Added native high-resolution layouts for Emery and Gabbro.
+- Use the Chalk verdict font on Chalk, Emery, and Gabbro.
+- Updated the project build script for the current seven-platform Pebble SDK.
 
 ## [v1.2] - 2026-04-20
 ### Added
