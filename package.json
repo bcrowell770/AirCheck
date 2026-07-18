@@ -1,7 +1,7 @@
 {
   "name": "aircheck",
   "author": "BD Crowell",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "keywords": ["pebble-app"],
   "private": true,
   "dependencies": {
@@ -9,7 +9,7 @@
   },
   "pebble": {
     "displayName": "AirCheck",
-    "uuid": "0a5d4d0a-f1f4-4cf5-b414-8a6a1fe85052",
+    "uuid": "6376dea3-7bf4-42d0-937a-33c1be9d32f7",
     "sdkVersion": "3",
     "enableMultiJS": true,
     "targetPlatforms": [

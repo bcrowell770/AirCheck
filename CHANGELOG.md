@@ -1,6 +1,8 @@
 # Changelog
 
 ## [Unreleased]
+
+## [v1.3.1] - 2026-07-18
 ### Added
 - Added United States and European AQI scale selection in Clay settings.
 - Added optional fixed-location lookup by city or postal code and country code.
@@ -11,6 +13,9 @@
 - Added native high-resolution layouts for Emery and Gabbro.
 - Use the Chalk verdict font on Chalk, Emery, and Gabbro.
 - Updated the project build script for the current seven-platform Pebble SDK.
+
+### Fixed
+- Corrected the app UUID to match the existing published AirCheck listing.
 
 ## [v1.2] - 2026-04-20
 ### Added
