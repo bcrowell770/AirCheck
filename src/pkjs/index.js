@@ -41,6 +41,14 @@ function cleanText(value) {
   return typeof value === 'string' ? value.replace(/^\s+|\s+$/g, '') : '';
 }
 
+function clayValue(settings, key) {
+  var setting = settings && settings[key];
+  if (setting && typeof setting === 'object' && setting.hasOwnProperty('value')) {
+    return setting.value;
+  }
+  return setting;
+}
+
 function normalizeSettings(settings) {
   var normalized = copySettings(DEFAULT_SETTINGS);
 
@@ -341,11 +349,11 @@ Pebble.addEventListener('webviewclosed', function(event) {
   try {
     settings = clay.getSettings(event.response, false);
     writeSettings({
-      temperatureUnit: settings.TemperatureUnit,
-      aqiScale: settings.AQIScale,
-      locationMode: settings.LocationMode,
-      fixedLocation: settings.FixedLocation,
-      countryCode: settings.CountryCode
+      temperatureUnit: clayValue(settings, 'TemperatureUnit'),
+      aqiScale: clayValue(settings, 'AQIScale'),
+      locationMode: clayValue(settings, 'LocationMode'),
+      fixedLocation: clayValue(settings, 'FixedLocation'),
+      countryCode: clayValue(settings, 'CountryCode')
     });
     refreshData();
   } catch (error) {

@@ -427,6 +427,9 @@ static bool has_failure_status(const LivePayload *payload) {
 static void render_screen(void);
 
 static void render_loading_state(void) {
+#ifdef PBL_PLATFORM_EMERY
+  text_layer_set_font(s_primary_layer, fonts_get_system_font(FONT_KEY_BITHAM_30_BLACK));
+#endif
   text_layer_set_text(s_title_layer, "AIRCHECK");
   text_layer_set_text_color(s_primary_layer, GColorWhite);
   text_layer_set_text(s_primary_layer, "Locating...");
@@ -440,6 +443,9 @@ static void render_summary_screen(const LivePayload *payload) {
   static char aqi_buffer[28];
   static char weather_buffer[28];
 
+#ifdef PBL_PLATFORM_EMERY
+  text_layer_set_font(s_primary_layer, fonts_get_system_font(FONT_KEY_BITHAM_42_BOLD));
+#endif
   text_layer_set_text(s_title_layer, "AIRCHECK");
   text_layer_set_text_color(s_primary_layer, verdict_color_for_payload(payload));
   text_layer_set_text(s_primary_layer, verdict_text_for_payload(payload));
@@ -467,6 +473,9 @@ static void render_summary_screen(const LivePayload *payload) {
 static void render_aqi_screen(const LivePayload *payload) {
   static char aqi_buffer[16];
 
+#ifdef PBL_PLATFORM_EMERY
+  text_layer_set_font(s_primary_layer, fonts_get_system_font(FONT_KEY_BITHAM_42_BOLD));
+#endif
   text_layer_set_text(s_title_layer, "AIR QUALITY");
   text_layer_set_text_color(s_primary_layer, GColorWhite);
 
@@ -494,6 +503,9 @@ static void render_weather_screen(const LivePayload *payload) {
   static char temp_buffer[16];
   static char uv_buffer[16];
 
+#ifdef PBL_PLATFORM_EMERY
+  text_layer_set_font(s_primary_layer, fonts_get_system_font(FONT_KEY_BITHAM_42_BOLD));
+#endif
   text_layer_set_text(s_title_layer, "WEATHER");
   text_layer_set_text_color(s_primary_layer, GColorWhite);
 
@@ -666,20 +678,24 @@ static void main_window_load(Window *window) {
   GRect bounds = layer_get_bounds(window_layer);
   bool is_round = PBL_IF_ROUND_ELSE(true, false);
   bool is_large = bounds.size.w >= 200;
+  bool is_large_rect = is_large && !is_round;
   bool is_bw;
+  GFont title_font;
   GFont primary_font;
   GFont secondary_font;
-  int horizontal_inset = is_round ? (is_large ? 28 : 12) : (is_large ? 8 : 4);
-  int title_y = is_round ? (is_large ? 18 : 10) : (is_large ? 8 : 2);
-  int primary_y = is_round ? (is_large ? 55 : 30) : (is_large ? 42 : 20);
+  GFont detail_font;
+  GFont helper_font;
+  int horizontal_inset = is_round ? (is_large ? 28 : 12) : (is_large ? 2 : 4);
+  int title_y = is_round ? (is_large ? 18 : 10) : (is_large ? 4 : 2);
+  int primary_y = is_round ? (is_large ? 55 : 30) : (is_large ? 30 : 20);
   int primary_h = is_large ? 50 : (is_round ? 44 : 40);
-  int secondary_y = is_round ? (is_large ? 112 : 76) : (is_large ? 94 : 64);
+  int secondary_y = is_round ? (is_large ? 112 : 76) : (is_large ? 86 : 64);
   int secondary_h;
-  int detail_y = is_round ? (is_large ? 150 : 104) : (is_large ? 130 : 94);
+  int detail_y = is_round ? (is_large ? 150 : 104) : (is_large ? 122 : 94);
   int detail_h;
-  int reason_y = is_round ? (is_large ? 182 : 128) : (is_large ? 160 : 120);
-  int reason_h = is_large ? 36 : (is_round ? 32 : 28);
-  int helper_y = bounds.size.h - (is_round ? (is_large ? 28 : 24) : (is_large ? 20 : 16));
+  int reason_y = is_round ? (is_large ? 182 : 128) : (is_large ? 156 : 120);
+  int reason_h = is_large_rect ? 46 : (is_large ? 36 : (is_round ? 32 : 28));
+  int helper_y = bounds.size.h - (is_round ? (is_large ? 28 : 24) : (is_large ? 22 : 16));
   GRect content_bounds = inset_rect(bounds, horizontal_inset);
 
 #ifdef PBL_BW
@@ -688,17 +704,25 @@ static void main_window_load(Window *window) {
   is_bw = false;
 #endif
 
-  primary_font = (is_round || is_large) ? fonts_get_system_font(FONT_KEY_BITHAM_30_BLACK) :
+  title_font = is_large_rect ? fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD) :
+                               fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD);
+  primary_font = is_large_rect ? fonts_get_system_font(FONT_KEY_BITHAM_42_BOLD) :
+                 (is_round || is_large) ? fonts_get_system_font(FONT_KEY_BITHAM_30_BLACK) :
                                           fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD);
-  secondary_font = is_bw ? fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD) :
+  secondary_font = is_large_rect ? fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD) :
+                   is_bw ? fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD) :
                            fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD);
+  detail_font = is_large_rect ? fonts_get_system_font(FONT_KEY_GOTHIC_24) :
+                                fonts_get_system_font(FONT_KEY_GOTHIC_18);
+  helper_font = is_large_rect ? fonts_get_system_font(FONT_KEY_GOTHIC_18) :
+                                fonts_get_system_font(FONT_KEY_GOTHIC_14);
 
-  secondary_h = is_bw ? 28 : 28;
-  detail_h = is_bw ? 22 : 24;
+  secondary_h = is_large_rect ? 34 : 28;
+  detail_h = is_large_rect ? 32 : (is_bw ? 22 : 24);
 
   s_title_layer = create_text_layer(GRect(content_bounds.origin.x, title_y,
-                                          content_bounds.size.w, 18),
-                                    fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD),
+                                          content_bounds.size.w, is_large_rect ? 22 : 18),
+                                    title_font,
                                     GTextAlignmentCenter);
   s_primary_layer = create_text_layer(GRect(content_bounds.origin.x, primary_y,
                                             content_bounds.size.w, primary_h),
@@ -710,15 +734,15 @@ static void main_window_load(Window *window) {
                                         GTextAlignmentCenter);
   s_detail_layer = create_text_layer(GRect(content_bounds.origin.x, detail_y,
                                            content_bounds.size.w, detail_h),
-                                     fonts_get_system_font(FONT_KEY_GOTHIC_18),
+                                     detail_font,
                                      GTextAlignmentCenter);
   s_reason_layer = create_text_layer(GRect(content_bounds.origin.x + 2, reason_y,
                                            content_bounds.size.w - 4, reason_h),
-                                     fonts_get_system_font(FONT_KEY_GOTHIC_18),
+                                     detail_font,
                                      GTextAlignmentCenter);
   s_helper_layer = create_text_layer(GRect(content_bounds.origin.x, helper_y,
-                                           content_bounds.size.w, 14),
-                                     fonts_get_system_font(FONT_KEY_GOTHIC_14),
+                                           content_bounds.size.w, is_large_rect ? 20 : 14),
+                                     helper_font,
                                      GTextAlignmentCenter);
 
   layer_add_child(window_layer, text_layer_get_layer(s_title_layer));
