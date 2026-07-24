@@ -1,7 +1,7 @@
 {
   "name": "aircheck",
   "author": "BD Crowell",
-  "version": "1.3.1",
+  "version": "1.3.2",
   "keywords": ["pebble-app"],
   "private": true,
   "dependencies": {

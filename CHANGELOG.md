@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [v1.3.2] - 2026-07-23
+### Changed
+- Increased text sizes and adjusted spacing for the native Emery/Time 2 layout.
+
+### Fixed
+- Fixed Clay settings parsing so temperature units, AQI scale, and fixed-location choices are saved and applied.
+
 ## [v1.3.1] - 2026-07-18
 ### Added
 - Added United States and European AQI scale selection in Clay settings.
